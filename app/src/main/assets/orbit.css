@@ -201,3 +201,53 @@ body.drift #sun { transform: translateY(-40%) scale(1.35); }
 
 body.modal-open #sun, body.modal-open #label, body.modal-open #rings, body.modal-open #hints { opacity: 0; }
 body.modal-open #orbit { opacity: .35; }
+
+/* ---------- worlds: live channels & asteroids ---------- */
+.planet.live .body { background: #f4f1ea; }
+.planet.live .body img { object-fit: contain; padding: 14%; background: radial-gradient(circle at 40% 35%, #ffffff, #d9dbe6); }
+.planet .badge {
+  position: absolute; left: 50%; bottom: -6%; transform: translateX(-50%);
+  font-size: 1.5vh; letter-spacing: .25vh; font-weight: 700; padding: .25vh .9vh; border-radius: 1vh;
+  background: #e0245e; color: #fff; box-shadow: 0 0 1.5vh rgba(224,36,94,.6);
+}
+.planet.rock .body img { filter: grayscale(.85) brightness(.7) contrast(1.1); }
+.planet.rock .body { border-radius: 46% 54% 42% 58% / 52% 44% 56% 48%; }
+.planet.rock .atmo { background: radial-gradient(circle, rgba(160,160,170,.6) 0%, rgba(0,0,0,0) 68%); }
+.planet.rock.focus .body img { filter: grayscale(.3) brightness(.9); }
+
+/* ---------- sky events ---------- */
+#sol.eclipsed::after {
+  content: ""; position: absolute; left: 12%; top: 10%; width: 76%; height: 76%; border-radius: 50%;
+  background: #05060f; box-shadow: 0 0 2vh 0 rgba(255,240,200,.8);
+}
+#luna.blood { background: radial-gradient(circle at 40% 38%, #e8a07a, #9b3b22 70%); box-shadow: 0 0 5vh 1vh rgba(200,80,50,.35); }
+
+/* ---------- toast & progress ---------- */
+#toast {
+  position: absolute; left: 50%; top: 5vh; transform: translate(-50%, -2vh); z-index: 1200; opacity: 0;
+  background: rgba(14,16,36,.94); border: .2vh solid rgba(255,255,255,.12); border-radius: 4vh;
+  padding: 1.4vh 3.2vh; font-size: 2.1vh; max-width: 70vw; text-align: center;
+  transition: opacity .35s, transform .35s; pointer-events: none;
+}
+#toast.on { opacity: 1; transform: translate(-50%, 0); }
+#progress {
+  position: absolute; right: 4vw; top: 6vh; z-index: 1200; width: 26vh; display: none;
+  background: rgba(14,16,36,.94); border-radius: 1.6vh; padding: 1.4vh 1.8vh; font-size: 1.8vh; overflow: hidden;
+}
+#progress.on { display: block; }
+#progress i { display: block; height: .5vh; margin-top: 1vh; border-radius: .5vh; background: linear-gradient(90deg, #5b4fd6, #9aa8ff); transition: width .3s; }
+
+/* ---------- beam / notes / eclipse ---------- */
+.beam-wrap { display: flex; align-items: center; text-align: left; margin-top: 1vh; }
+.beam-wrap .beam-text { flex: 1; margin-left: 4vh; }
+.beam-wrap .beam-text p:first-child { margin-top: 0; }
+.qr { width: 36vh; height: 36vh; border-radius: 2vh; background: #fff; display: block; image-rendering: pixelated; flex: none; }
+.qr-demo { color: #0a0c20; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 2.2vh; line-height: 1.5; }
+.code { font-family: "Roboto Mono", monospace; font-size: 1.9vh !important; color: #c9d0ff; opacity: 1 !important; word-break: break-all; }
+.note { font-size: 3.4vh; line-height: 1.45; margin: 2vh 0; font-weight: 300; word-break: break-word; }
+.eclipse-art { position: relative; width: 26vh; height: 26vh; margin: 0 auto 3vh; }
+.e-sun { position: absolute; left: 0; top: 0; width: 100%; height: 100%; border-radius: 50%;
+  background: radial-gradient(circle, #fff6d8 0%, #ffd27a 50%, rgba(255,190,90,0) 72%); }
+.e-moon { position: absolute; left: 14%; top: 14%; width: 72%; height: 72%; border-radius: 50%; background: #03040d;
+  box-shadow: 0 0 3vh .5vh rgba(255,236,190,.9); animation: emoon 3.5s cubic-bezier(.2,.7,.2,1) forwards; }
+@keyframes emoon { from { transform: translateX(-120%); } to { transform: translateX(0); } }

@@ -18,7 +18,14 @@ An experimental home screen for Fire TV, Android TV and Google TV boxes. The usu
 | **Wind-down** | After your bedtime (23:00 by default, change it in Tools) the screen warms and the stars twinkle more slowly. Launching an app shows one breathing circle first, at most once every 30 minutes. |
 | **Drift** | After 2 minutes idle everything fades except a large clock. |
 
-Everything stays on the box: no account, no network, no tracking. Launch history is kept in the app's private storage, and *Tools → Forget my habits* clears it.
+| **Beam** | *Tools → Beam* shows a QR code. Scan it on your phone (same Wi-Fi) and your phone becomes Orbit's keyboard. Send a link and it opens; send an `.apk` link (or a GitHub release download) and Orbit installs it; send a Downloader code like `12345` and it opens in Downloader; send anything else and it appears on screen as a note. |
+| **Eclipse** | A sleep timer for any app. Set it in *Tools* or from the Beam page; when it ends, Orbit comes back to the front, which pauses most players, under an eclipsed sun. |
+| **Live worlds** | Sign in with Xtream details on the Beam page and pick favourite channels. They become planets on the **Live** ring with what's on now and next. OK opens the channel straight in Reborn's player (channel up/down moves through your favourites); without Reborn, any installed video player is used. Channels can be pinned, spelled and learnt by the Tide like apps. |
+| **Asteroid belt** | Apps you haven't opened for 60 days drift out to their own ring, biggest first, with their size. OK → uninstall, open, or keep. |
+| **Sky events** | Meteor-shower peaks (with more shooting stars), full moons by their traditional names, new moons, solstices and equinoxes, and solar/lunar eclipses through 2028 — on the day the sun in Orbit's sky is eclipsed too. |
+| **Sonic orbit** | *Tools → Sonic orbit*: every world gets its own note (from its colour) as it swings to the front, rings whoosh, launches chime. "Chimes + ambience" adds a quiet pad that changes chord with the time of day. Off by default. |
+
+Everything stays on the box: no account, no tracking. Your Xtream login and channels are stored on the box only. Launch history is kept in the app's private storage, and *Tools → Forget my habits* clears it.
 
 ## Remote controls
 
@@ -44,6 +51,14 @@ That URL can be typed straight into the **Downloader** app on a Fire TV.
 To build locally you need Android Studio, or the Android SDK plus JDK 17. Run `./gradlew assembleRelease`.
 
 The repo includes a signing key (`app/orbit.jks`) so every build installs over the previous one. Replace it, or move the passwords into GitHub secrets, before you give the app to anyone else.
+
+## Notes on the new features
+
+* **Beam** runs a tiny server on port 8790 on your local network. Every request needs the token in the QR code.
+* **Installing from Beam** needs Orbit to be allowed to install apps. The first time, Orbit opens that setting for you (on Fire TV: *Settings → My Fire TV → Developer options → Install unknown apps → Orbit*).
+* **Eclipse** is most reliable when Orbit is the default home screen. Android 10+ limits apps bringing themselves to the front; the home app is allowed to.
+* **Asteroid belt** learns from launches through Orbit, so it appears after three weeks. For the box's real usage history straight away, run `adb shell appops set com.orbit.launcher GET_USAGE_STATS allow`.
+* **Live worlds → Reborn** needs Reborn build from 16 Nov 2026 or later.
 
 ## Making it the home screen
 

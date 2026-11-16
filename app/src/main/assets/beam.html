@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#06081a">
+<title>Beam to Orbit</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #f4f1ea;
+    background: radial-gradient(ellipse at 50% -10%, #2a2457 0%, #0b0d24 45%, #04050d 100%) fixed; min-height: 100vh; }
+  main { max-width: 520px; margin: 0 auto; padding: 22px 18px 60px; }
+  h1 { font-weight: 250; font-size: 30px; letter-spacing: 1px; margin: 6px 0 2px; }
+  .sub { opacity: .6; font-size: 14px; margin-bottom: 22px; }
+  section { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); border-radius: 18px; padding: 16px; margin-bottom: 16px; }
+  h2 { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; font-weight: 500; opacity: .7; margin: 0 0 12px; }
+  textarea, input { width: 100%; background: rgba(0,0,0,.35); color: inherit; border: 1px solid rgba(255,255,255,.15);
+    border-radius: 12px; padding: 12px; font-size: 16px; font-family: inherit; outline: none; }
+  textarea:focus, input:focus { border-color: #9aa8ff; }
+  textarea { min-height: 92px; resize: vertical; }
+  input + input { margin-top: 8px; }
+  button { font: inherit; font-size: 15px; color: #fff; background: #5b4fd6; border: 0; border-radius: 999px;
+    padding: 11px 18px; margin-top: 10px; cursor: pointer; }
+  button.ghost { background: rgba(255,255,255,.08); }
+  button:active { transform: scale(.97); }
+  .row { display: flex; flex-wrap: wrap; margin: -4px; }
+  .row button { margin: 4px; flex: 1 1 22%; padding: 11px 6px; }
+  .hint { font-size: 13px; opacity: .55; margin-top: 8px; line-height: 1.45; }
+  .msg { font-size: 14px; margin-top: 10px; min-height: 18px; color: #c9d0ff; }
+  .msg.bad { color: #ff9b9b; }
+  .list > div { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .list > div:last-child { border-bottom: 0; }
+  .list img { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; background: rgba(255,255,255,.06); margin-right: 10px; flex: none; }
+  .list .n { flex: 1; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .list button { margin: 0 0 0 6px; padding: 6px 12px; font-size: 14px; flex: none; }
+  .hide { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Beam</h1>
+  <div class="sub">Your phone is now Orbit&rsquo;s keyboard.</div>
+
+  <section>
+    <h2>Send to TV</h2>
+    <textarea id="text" placeholder="A link, an APK link, a Downloader code, or a note"></textarea>
+    <button id="send">Send to TV</button>
+    <div class="hint">Links open on the TV. Links to .apk files (and GitHub release downloads) install. Numbers like 12345 open in Downloader. Anything else appears on screen as a note.</div>
+    <div class="msg" id="sendMsg"></div>
+  </section>
+
+  <section>
+    <h2>Eclipse &middot; sleep timer</h2>
+    <div id="eclipseState" class="hint" style="margin-top:0">Orbit will come back and pause whatever&rsquo;s playing.</div>
+    <div class="row">
+      <button class="ghost" data-m="15">15m</button><button class="ghost" data-m="30">30m</button>
+      <button class="ghost" data-m="45">45m</button><button class="ghost" data-m="60">1h</button>
+      <button class="ghost" data-m="90">1&frac12;h</button><button class="ghost" data-m="120">2h</button>
+      <button class="ghost" data-m="0">Cancel</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Live worlds</h2>
+    <div id="liveOut">
+      <div class="hint" style="margin-top:0">Sign in with your Xtream details so Orbit can show what&rsquo;s on and open channels straight in Reborn. They stay on the TV box.</div>
+      <input id="server" placeholder="Server (e.g. http://example.com:8080)" autocapitalize="off" autocorrect="off">
+      <input id="user" placeholder="Username" autocapitalize="off" autocorrect="off">
+      <input id="pass" placeholder="Password" type="password">
+      <button id="login">Sign in</button>
+    </div>
+    <div id="liveIn" class="hide">
+      <div class="hint" style="margin-top:0">Your channels become planets on the Live ring.</div>
+      <div class="list" id="favs"></div>
+      <input id="q" placeholder="Search channels to add&hellip;" style="margin-top:12px" autocapitalize="off">
+      <div class="list" id="results"></div>
+      <button class="ghost" id="logout">Sign out</button>
+    </div>
+    <div class="msg" id="liveMsg"></div>
+  </section>
+</main>
+<script>
+(function () {
+  var T = new URLSearchParams(location.search).get('t') || '';
+  function $(id) { return document.getElementById(id); }
+  function api(path, body) {
+    var url = path + (path.indexOf('?') < 0 ? '?' : '&') + 't=' + encodeURIComponent(T);
+    var opt = body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+    return fetch(url, opt).then(function (r) {
+      return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || 'Failed'); return j; });
+    });
+  }
+  function msg(id, text, bad) { var m = $(id); m.textContent = text || ''; m.className = 'msg' + (bad ? ' bad' : ''); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // send
+  $('send').onclick = function () {
+    var t = $('text').value.trim(); if (!t) return;
+    msg('sendMsg', 'Sending…');
+    api('/api/send', { text: t }).then(function (r) { msg('sendMsg', '✦ ' + r.did); $('text').value = ''; })
+      .catch(function (e) { msg('sendMsg', e.message, true); });
+  };
+
+  // eclipse
+  function showEclipse(at) {
+    $('eclipseState').textContent = at ? 'Eclipse at ' + new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' — Orbit will come back and pause whatever’s playing.'
+      : 'No timer set. Orbit will come back and pause whatever’s playing.';
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-m]'), function (b) {
+    b.onclick = function () { api('/api/eclipse', { minutes: +b.getAttribute('data-m') }).then(function (r) { showEclipse(r.eclipseAt); }); };
+  });
+
+  // live
+  function favRow(c, i, n) {
+    var img = c.icon ? '<img src="' + esc(c.icon) + '" onerror="this.style.visibility=\'hidden\'">' : '<img>';
+    return '<div>' + img + '<span class="n">' + esc(c.name) + '</span>' +
+      (i > 0 ? '<button class="ghost" data-up="' + esc(c.id) + '">↑</button>' : '') +
+      '<button class="ghost" data-rm="' + esc(c.id) + '">✕</button></div>';
+  }
+  function showFavs(list) {
+    $('favs').innerHTML = list.length ? list.map(function (c, i) { return favRow(c, i, list.length); }).join('') : '<div class="hint">No channels yet — search below.</div>';
+  }
+  function showLive(state) {
+    $('liveOut').className = state.signedIn ? 'hide' : '';
+    $('liveIn').className = state.signedIn ? '' : 'hide';
+    if (state.signedIn) showFavs(state.channels || []);
+  }
+  $('login').onclick = function () {
+    msg('liveMsg', 'Checking with your provider…');
+    api('/api/live/login', { server: $('server').value, user: $('user').value, pass: $('pass').value })
+      .then(function () { msg('liveMsg', 'Signed in. Search for channels to add.'); showLive({ signedIn: true, channels: [] }); $('pass').value = ''; })
+      .catch(function (e) { msg('liveMsg', e.message, true); });
+  };
+  $('logout').onclick = function () { api('/api/live/logout', {}).then(function () { showLive({ signedIn: false }); msg('liveMsg', ''); }); };
+  var qt = null, lastResults = [];
+  $('q').oninput = function () {
+    clearTimeout(qt);
+    var q = $('q').value.trim();
+    if (q.length < 2) { $('results').innerHTML = ''; return; }
+    qt = setTimeout(function () {
+      msg('liveMsg', 'Searching… (the first search loads your whole channel list)');
+      api('/api/live/search?q=' + encodeURIComponent(q)).then(function (list) {
+        lastResults = list; msg('liveMsg', list.length ? '' : 'No channels match');
+        $('results').innerHTML = list.map(function (c, i) {
+          var img = c.icon ? '<img src="' + esc(c.icon) + '" onerror="this.style.visibility=\'hidden\'">' : '<img>';
+          return '<div>' + img + '<span class="n">' + esc(c.name) + '</span><button data-add="' + i + '">Add</button></div>';
+        }).join('');
+      }).catch(function (e) { msg('liveMsg', e.message, true); });
+    }, 350);
+  };
+  document.body.addEventListener('click', function (e) {
+    var b = e.target;
+    if (b.hasAttribute('data-add')) {
+      var c = lastResults[+b.getAttribute('data-add')];
+      api('/api/live/add', c).then(function (list) { showFavs(list); b.textContent = 'Added'; b.disabled = true; });
+    } else if (b.hasAttribute('data-rm')) {
+      api('/api/live/remove', { id: b.getAttribute('data-rm') }).then(showFavs);
+    } else if (b.hasAttribute('data-up')) {
+      api('/api/live/move', { id: b.getAttribute('data-up'), dir: -1 }).then(showFavs);
+    }
+  });
+
+  api('/api/state').then(function (s) { showEclipse(s.eclipseAt); showLive(s); })
+    .catch(function () { msg('sendMsg', 'Can’t reach the TV — is your phone on the same Wi-Fi?', true); });
+})();
+</script>
+</body>
+</html>
