@@ -575,7 +575,7 @@
     var d = new Date();
     $('#time').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
     var date = DAYS[d.getDay()] + ' · ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
-    if (eclipseAt > Date.now()) date += ' · ◑ eclipse ' + hhmm(eclipseAt);
+    if (eclipseAt > Date.now()) date += ' · eclipse ' + hhmm(eclipseAt);
     $('#date').textContent = date;
     var list = insights(), s = list[insightIx % list.length], el = $('#insight');
     if (s !== lastInsight) {
