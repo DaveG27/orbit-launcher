@@ -1,11 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Beam: install APK links sent from your phone -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Asteroid belt: uninstall unused apps; real "last used" times if granted via adb -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+    <!-- Eclipse: an on-time sleep timer -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <!-- Android 11+ package visibility: see every app a launcher could open -->
     <queries>
+        <package android:name="app.reborn.iptv" />
+        <package android:name="com.esaba.downloader" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
@@ -24,6 +38,7 @@
         android:label="Orbit"
         android:largeHeap="false"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Orbit">
 
         <activity
@@ -49,5 +64,9 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".Installer$InstallReceiver"
+            android:exported="false" />
     </application>
 </manifest>
