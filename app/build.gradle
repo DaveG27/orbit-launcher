@@ -1,0 +1,47 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.orbit.launcher'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.orbit.launcher'
+        minSdk 22          // Fire OS 5 and up
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    // One fixed key so every build installs over the last one.
+    // Move these to GitHub secrets before sharing the app with anyone else.
+    signingConfigs {
+        orbit {
+            storeFile file('orbit.jks')
+            storePassword 'orbit-launcher'
+            keyAlias 'orbit'
+            keyPassword 'orbit-launcher'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.orbit
+        }
+        debug {
+            signingConfig signingConfigs.orbit
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}

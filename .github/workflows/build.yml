@@ -1,0 +1,42 @@
+name: Build Orbit APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build signed APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk orbit.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbit-apk
+          path: orbit.apk
+
+      # Stable download link for the Downloader app on Fire TV:
+      #   https://github.com/<you>/<repo>/releases/download/latest/orbit.apk
+      - name: Publish "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest orbit.apk --title "Orbit — latest build" --notes "Built from ${GITHUB_SHA::7}"

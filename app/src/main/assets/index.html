@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Orbit</title>
+<link rel="stylesheet" href="orbit.css">
+</head>
+<body>
+  <!-- the living sky -->
+  <div id="sky"></div>
+  <canvas id="stars"></canvas>
+  <div id="sol"></div>
+  <div id="luna"><div class="shade"></div></div>
+  <div id="ground"></div>
+  <div id="warm"></div>
+
+  <!-- the sun: clock + tide insight -->
+  <div id="sun">
+    <div id="time">--:--</div>
+    <div id="date"></div>
+    <div id="insight"></div>
+  </div>
+
+  <!-- ring selector -->
+  <div id="rings"></div>
+
+  <!-- the orbit itself -->
+  <div id="orbit"></div>
+
+  <!-- focused planet label -->
+  <div id="label">
+    <div id="name"></div>
+    <div id="meta"></div>
+  </div>
+
+  <div id="hints">
+    <span><b>◀ ▶</b> orbit</span>
+    <span><b>▲ ▼</b> rings</span>
+    <span><b>OK</b> launch</span>
+    <span><b>hold OK</b> options</span>
+    <span><b>BACK</b> cast a spell</span>
+    <span><b>PLAY</b> roulette</span>
+  </div>
+
+  <div id="flash"></div>
+  <div id="modal"></div>
+
+  <script src="orbit.js"></script>
+</body>
+</html>
