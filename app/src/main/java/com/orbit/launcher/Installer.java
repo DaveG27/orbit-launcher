@@ -30,6 +30,18 @@ import java.util.zip.ZipFile;
  */
 final class Installer {
     private static volatile boolean busy = false;
+    private static volatile long busySince = 0;
+    // An install left waiting at a confirm prompt that was dismissed never reports back;
+    // after this long we stop waiting for it.
+    private static final long STALE_MS = 90_000;
+
+    /** Claims the installer; false if another install is genuinely still running. */
+    private static synchronized boolean take() {
+        if (busy && System.currentTimeMillis() - busySince < STALE_MS) return false;
+        busy = true;
+        busySince = System.currentTimeMillis();
+        return true;
+    }
 
     private Installer() { }
 
@@ -56,9 +68,8 @@ final class Installer {
 
     /** Download a link and install it. */
     static void install(final MainActivity act, final String url) {
-        if (busy) { act.toastJs("Already installing something — one moment"); return; }
         if (!allowed(act)) return;
-        busy = true;
+        if (!take()) { act.toastJs("Already installing something — one moment"); return; }
         new Thread(() -> {
             File f = new File(act.getCacheDir(), "beam.bin");
             try {
@@ -77,9 +88,8 @@ final class Installer {
 
     /** A file the phone uploaded through Beam is ready in the cache: install it. */
     static boolean claim(MainActivity act) {
-        if (busy) { act.toastJs("Already installing something — one moment"); return false; }
         if (!allowed(act)) return false;
-        busy = true;
+        if (!take()) { act.toastJs("Already installing something — one moment"); return false; }
         return true;
     }
 
@@ -118,6 +128,7 @@ final class Installer {
                     if (picked.isEmpty()) throw new Exception("No app found inside that file");
                     int i = 0;
                     for (Map.Entry<String, ZipEntry> e : picked.entrySet()) {
+                        busySince = System.currentTimeMillis();
                         act.progressJs("Installing " + (++i) + "/" + picked.size(), 100);
                         write(s, e.getKey(), zip.getInputStream(e.getValue()), e.getValue().getSize());
                     }

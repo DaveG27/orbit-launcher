@@ -167,7 +167,7 @@ final class BeamServer extends Thread {
     private void upload(InputStream in, OutputStream out, long len, Socket sock) throws Exception {
         if (len <= 0) { json(out, 400, err("Nothing was sent")); return; }
         if (len > 1024L * 1024 * 1024) { json(out, 413, err("That file is too big")); return; }
-        if (!Installer.claim(act)) { json(out, 409, err("The TV can’t install right now — check the TV screen")); return; }
+        if (!Installer.claim(act)) { json(out, 409, err("The TV is still finishing another install — try again in a minute, and check the TV for a prompt")); return; }
         java.io.File f = new java.io.File(act.getCacheDir(), "beam.bin");
         try {
             sock.setSoTimeout(60000);
