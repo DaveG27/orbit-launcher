@@ -142,14 +142,18 @@ final class BeamServer extends Thread {
                 int i = h.indexOf(':');
                 if (i > 0) r.headers.put(h.substring(0, i).trim().toLowerCase(Locale.ROOT), h.substring(i + 1).trim());
             }
-            int len = 0;
-            try { len = Integer.parseInt(r.headers.containsKey("content-length") ? r.headers.get("content-length") : "0"); } catch (NumberFormatException ignored) { }
+            long len = 0;
+            try { len = Long.parseLong(r.headers.containsKey("content-length") ? r.headers.get("content-length") : "0"); } catch (NumberFormatException ignored) { }
+            if (r.path.equals("/api/upload") && token.equals(r.query.get("t"))) {
+                upload(in, out, len, sock);
+                return;
+            }
             if (len > 256 * 1024) { send(out, 413, "text/plain", "Too large".getBytes(StandardCharsets.UTF_8)); return; }
             if (len > 0) {
-                byte[] b = new byte[len];
+                byte[] b = new byte[(int) len];
                 int off = 0;
                 while (off < len) {
-                    int n = in.read(b, off, len - off);
+                    int n = in.read(b, off, (int) len - off);
                     if (n < 0) break;
                     off += n;
                 }
@@ -159,8 +163,41 @@ final class BeamServer extends Thread {
         } catch (Exception ignored) { }
     }
 
+    /** The phone sends an app file (APK or bundle) as the raw request body. */
+    private void upload(InputStream in, OutputStream out, long len, Socket sock) throws Exception {
+        if (len <= 0) { json(out, 400, err("Nothing was sent")); return; }
+        if (len > 1024L * 1024 * 1024) { json(out, 413, err("That file is too big")); return; }
+        if (!Installer.claim(act)) { json(out, 409, err("The TV can’t install right now — check the TV screen")); return; }
+        java.io.File f = new java.io.File(act.getCacheDir(), "beam.bin");
+        try {
+            sock.setSoTimeout(60000);
+            try (OutputStream fo = new java.io.FileOutputStream(f)) {
+                byte[] buf = new byte[65536];
+                long done = 0;
+                int last = -1;
+                while (done < len) {
+                    int n = in.read(buf, 0, (int) Math.min(buf.length, len - done));
+                    if (n < 0) throw new IOException("Upload stopped early");
+                    fo.write(buf, 0, n);
+                    done += n;
+                    int pct = (int) (done * 100 / len);
+                    if (pct != last && pct % 2 == 0) { last = pct; act.progressJs("Receiving", pct); }
+                }
+            }
+        } catch (Exception e) {
+            Installer.done();
+            act.progressJs(null, -1);
+            json(out, 500, err("Upload failed: " + e.getMessage()));
+            return;
+        }
+        Installer.installUploaded(act, f);
+        JSONObject o = new JSONObject();
+        o.put("did", "Installing on the TV — follow any prompt there");
+        json(out, 200, o);
+    }
+
     private static void send(OutputStream out, int code, String type, byte[] body) throws IOException {
-        String status = code == 200 ? "OK" : code == 404 ? "Not Found" : code == 403 ? "Forbidden" : "Error";
+        String status = code == 200 ? "OK" : code == 404 ? "Not Found" : code == 403 ? "Forbidden" : code == 413 ? "Too Large" : "Error";
         String head = "HTTP/1.1 " + code + " " + status + "\r\n"
                 + "Content-Type: " + type + "\r\n"
                 + "Content-Length: " + body.length + "\r\n"

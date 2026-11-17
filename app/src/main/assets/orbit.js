@@ -152,6 +152,7 @@
     sound: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
     live: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M8 2l4 4 4-4"/><circle cx="12" cy="12.5" r="2" fill="#fff"/></svg>',
     doorbell: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="2"/><circle cx="12" cy="15.5" r="2.6"/><path d="M3 9c-1 2-1 4 0 6M21 9c1 2 1 4 0 6"/></svg>',
+    update: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>',
     belt: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="14" r="2.5"/><circle cx="13" cy="9" r="3.5"/><circle cx="19" cy="15" r="1.8"/><path d="M2 19c6-2 14-2 20 0"/></svg>'
   };
   var BEDTIMES = [null, 21, 22, 23, 0, 1];
@@ -206,6 +207,7 @@
       { tool: 'bedtime', label: 'Bedtime · ' + bedLabel(store.bedtime), sub: 'OK to change · after this the sky warms and launching asks for a breath', c: '#3d1a0c', c2: '#e2763a' },
       { tool: 'sound', label: 'Sonic orbit · ' + SOUND_LABELS[store.sound || 0], sub: 'OK to change · every world has its own note', c: '#0f2b33', c2: '#36b5c9' },
       bellItem(),
+      { tool: 'update', label: 'Update Orbit' + (NATIVE && NATIVE.version ? ' · v' + NATIVE.version() : ''), sub: 'OK to check for a newer build and install it', c: '#0f2a1a', c2: '#3fbf6f' },
       { tool: 'unhide', label: 'Hidden worlds · ' + store.hidden.length, sub: 'OK to bring every hidden app back into orbit', c: '#0d2d2a', c2: '#2fb39b' },
       { tool: 'forget', label: 'Forget my habits', sub: 'Clears launch history — the tide starts fresh', c: '#2a2a2a', c2: '#8a8a8a' },
       { tool: 'settings', label: 'Android settings', sub: 'System settings for this box', c: '#14212e', c2: '#4b84b8' }
@@ -743,6 +745,7 @@
       case 'settings': if (NATIVE) NATIVE.openSettings(); break;
       case 'beltinfo': openBeltInfo(); break;
       case 'doorbell': openBell(true); break;
+      case 'update': if (NATIVE && NATIVE.checkUpdate) { toast('Checking for a newer Orbit…'); NATIVE.checkUpdate(); } break;
     }
   }
   function refreshTools() {
@@ -1074,6 +1077,11 @@
     toast: toast,
     progress: progress,
     eclipseArrived: eclipseArrived,
+    updateInfo: function (o) {
+      if (o.error) toast(o.error);
+      else if (o.newer) toast('A newer Orbit is here — downloading it now');
+      else toast('Orbit is up to date (v' + o.current + ')');
+    },
     doorbellHeard: function (e) {
       if (modal && modal.bell) { closeModal(); openBell(); }
       else toast('🔔 Doorbell signal heard from ' + e.ip);

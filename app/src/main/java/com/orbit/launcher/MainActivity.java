@@ -307,6 +307,48 @@ public class MainActivity extends Activity {
         return o.toString();
     }
 
+    // ------------------------------------------------------------------ Update Orbit
+    private static final String RELEASE_API = "https://api.github.com/repos/DaveG27/orbit-launcher/releases/tags/latest";
+
+    long ownVersionCode() {
+        try {
+            PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
+            return Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    String ownVersionName() {
+        try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception e) { return "?"; }
+    }
+
+    /** Looks at the "latest" GitHub release and installs it if it's newer than this build. */
+    void checkUpdate() {
+        new Thread(() -> {
+            JSONObject res = new JSONObject();
+            try {
+                JSONObject rel = new JSONObject(Net.get(RELEASE_API, 15000));
+                java.util.regex.Matcher m = Pattern.compile("versionCode=(\\d+)").matcher(rel.optString("body", ""));
+                long latest = m.find() ? Long.parseLong(m.group(1)) : -1;
+                String apk = null;
+                JSONArray assets = rel.optJSONArray("assets");
+                for (int i = 0; assets != null && i < assets.length(); i++) {
+                    String u = assets.getJSONObject(i).optString("browser_download_url", "");
+                    if (u.endsWith(".apk")) { apk = u; break; }
+                }
+                long mine = ownVersionCode();
+                boolean newer = apk != null && latest > mine;
+                res.put("current", ownVersionName());
+                res.put("newer", newer);
+                if (newer) Installer.install(this, apk);
+            } catch (Exception e) {
+                try { res.put("error", "Couldn’t check for updates" + (e.getMessage() == null ? "" : ": " + e.getMessage())); } catch (Exception ignored) { }
+            }
+            js("window.Orbit&&Orbit.updateInfo&&Orbit.updateInfo(" + res.toString() + ")");
+        }, "orbit-update").start();
+    }
+
     void toastJs(String msg) { js("window.Orbit&&Orbit.toast(" + JSONObject.quote(msg) + ")"); }
 
     void progressJs(String label, int pct) {
@@ -331,7 +373,7 @@ public class MainActivity extends Activity {
         if (url != null) {
             String path = Uri.parse(url).getPath();
             path = path == null ? "" : path.toLowerCase(Locale.ROOT);
-            if (path.endsWith(".apk") || path.contains("/releases/download/")) {
+            if (Installer.isAppLink(path)) {
                 Installer.install(this, url);
                 return "Installing on the TV";
             }
@@ -662,6 +704,13 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) { }
             return o.toString();
         }
+
+        // --- Update Orbit
+        @JavascriptInterface
+        public String version() { return ownVersionName(); }
+
+        @JavascriptInterface
+        public void checkUpdate() { MainActivity.this.checkUpdate(); }
 
         // --- Doorbell test
         @JavascriptInterface

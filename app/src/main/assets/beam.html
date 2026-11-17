@@ -45,8 +45,16 @@
     <h2>Send to TV</h2>
     <textarea id="text" placeholder="A link, an APK link, a Downloader code, or a note"></textarea>
     <button id="send">Send to TV</button>
-    <div class="hint">Links open on the TV. Links to .apk files (and GitHub release downloads) install. Numbers like 12345 open in Downloader. Anything else appears on screen as a note.</div>
+    <div class="hint">Links open on the TV. Links to .apk, .apkm, .xapk and .apks files (and GitHub release downloads) install. Numbers like 12345 open in Downloader. Anything else appears on screen as a note.</div>
     <div class="msg" id="sendMsg"></div>
+  </section>
+
+  <section>
+    <h2>Install an app from your phone</h2>
+    <input id="appFile" type="file" accept=".apk,.apkm,.xapk,.apks,application/vnd.android.package-archive,application/octet-stream,application/zip">
+    <button id="upload">Send app to TV</button>
+    <div class="hint">Pick an .apk or a split bundle (.apkm from APKMirror, .xapk, .apks) you&rsquo;ve downloaded on this phone. Orbit picks the right parts for the TV and installs them.</div>
+    <div class="msg" id="upMsg"></div>
   </section>
 
   <section>
@@ -92,6 +100,21 @@
   }
   function msg(id, text, bad) { var m = $(id); m.textContent = text || ''; m.className = 'msg' + (bad ? ' bad' : ''); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // upload an app file
+  $('upload').onclick = function () {
+    var f = $('appFile').files[0]; if (!f) { msg('upMsg', 'Pick a file first', true); return; }
+    var x = new XMLHttpRequest();
+    x.open('POST', '/api/upload?t=' + encodeURIComponent(T) + '&name=' + encodeURIComponent(f.name));
+    x.setRequestHeader('Content-Type', 'application/octet-stream');
+    x.upload.onprogress = function (e) { if (e.lengthComputable) msg('upMsg', 'Sending… ' + Math.round(e.loaded * 100 / e.total) + '%'); };
+    x.onload = function () {
+      var j = {}; try { j = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status === 200) msg('upMsg', '✦ ' + (j.did || 'Sent')); else msg('upMsg', j.error || 'Failed', true);
+    };
+    x.onerror = function () { msg('upMsg', 'Lost the connection to the TV', true); };
+    msg('upMsg', 'Sending…'); x.send(f);
+  };
 
   // send
   $('send').onclick = function () {

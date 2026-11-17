@@ -2,6 +2,9 @@ plugins {
     id 'com.android.application'
 }
 
+// CI builds number themselves from the GitHub Actions run, so Tools → Update Orbit can tell a newer build.
+def ciRun = (System.getenv('GITHUB_RUN_NUMBER') ?: '0').toInteger()
+
 android {
     namespace 'com.orbit.launcher'
     compileSdk 35
@@ -10,8 +13,8 @@ android {
         applicationId 'com.orbit.launcher'
         minSdk 22          // Fire OS 5 and up
         targetSdk 35
-        versionCode 3
-        versionName '0.3.0'
+        versionCode 100 + ciRun
+        versionName "0.4.${ciRun}"
     }
 
     // One fixed key so every build installs over the last one.
