@@ -85,6 +85,7 @@ public class MainActivity extends Activity {
     private SharedPreferences prefs;
     private Live live;
     private BeamServer beam;
+    private Doorbell doorbell;
     private final Map<String, byte[]> iconCache = new ConcurrentHashMap<>();
     private final Map<String, byte[]> imgCache = java.util.Collections.synchronizedMap(
             new LinkedHashMap<String, byte[]>(64, 0.75f, true) {
@@ -173,6 +174,18 @@ public class MainActivity extends Activity {
         beam = new BeamServer(this, token);
         beam.start();
 
+        doorbell = new Doorbell(this, new Doorbell.Listener() {
+            @Override
+            public void heard(String ip, int length, String hex) { doorbellHeard(ip, length, hex); }
+
+            @Override
+            public void status(String status) {
+                prefs.edit().putString("doorbell_status", status).apply();
+                js("window.Orbit&&Orbit.doorbellStatus&&Orbit.doorbellStatus(" + JSONObject.quote(status) + ")");
+            }
+        });
+        if (prefs.getBoolean("doorbell_test", false)) doorbell.start();
+
         handleIntent(getIntent());
     }
 
@@ -219,6 +232,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         try { unregisterReceiver(packageReceiver); } catch (Exception ignored) { }
         if (beam != null) beam.shutdown();
+        if (doorbell != null) doorbell.stop();
         if (web != null) { web.removeJavascriptInterface("OrbitNative"); web.destroy(); web = null; }
         super.onDestroy();
     }
@@ -254,6 +268,43 @@ public class MainActivity extends Activity {
 
     void js(final String code) {
         runOnUiThread(() -> { if (web != null) web.evaluateJavascript(code, null); });
+    }
+
+    // ------------------------------------------------------------------ Doorbell test
+    // Keeps the last 20 packets heard on UDP 20005, so a ring is recorded even while
+    // another app is on screen.
+    private synchronized void doorbellHeard(String ip, int length, String hex) {
+        JSONObject e = new JSONObject();
+        try {
+            e.put("at", System.currentTimeMillis());
+            e.put("ip", ip);
+            e.put("len", length);
+            e.put("hex", hex);
+            JSONArray log;
+            try { log = new JSONArray(prefs.getString("doorbell_log", "[]")); } catch (Exception x) { log = new JSONArray(); }
+            JSONArray next = new JSONArray();
+            next.put(e);
+            for (int i = 0; i < log.length() && next.length() < 20; i++) next.put(log.get(i));
+            prefs.edit()
+                    .putString("doorbell_log", next.toString())
+                    .putInt("doorbell_count", prefs.getInt("doorbell_count", 0) + 1)
+                    .apply();
+        } catch (Exception ignored) { }
+        js("window.Orbit&&Orbit.doorbellHeard&&Orbit.doorbellHeard(" + e.toString() + ")");
+    }
+
+    String doorbellState() {
+        JSONObject o = new JSONObject();
+        try {
+            o.put("on", doorbell != null && doorbell.running());
+            o.put("status", prefs.getString("doorbell_status", "off"));
+            o.put("count", prefs.getInt("doorbell_count", 0));
+            JSONArray log;
+            try { log = new JSONArray(prefs.getString("doorbell_log", "[]")); } catch (Exception x) { log = new JSONArray(); }
+            o.put("log", log);
+            String ip = BeamServer.lanIp(); o.put("ip", ip == null ? "" : ip);
+        } catch (Exception ignored) { }
+        return o.toString();
     }
 
     void toastJs(String msg) { js("window.Orbit&&Orbit.toast(" + JSONObject.quote(msg) + ")"); }
@@ -610,6 +661,21 @@ public class MainActivity extends Activity {
                 o.put("short", url == null ? JSONObject.NULL : url.replaceFirst("/\\?t=.*$", ""));
             } catch (Exception ignored) { }
             return o.toString();
+        }
+
+        // --- Doorbell test
+        @JavascriptInterface
+        public String doorbellState() { return MainActivity.this.doorbellState(); }
+
+        @JavascriptInterface
+        public void doorbellTest(boolean on) {
+            prefs.edit().putBoolean("doorbell_test", on).apply();
+            if (on) {
+                prefs.edit().remove("doorbell_log").remove("doorbell_count").apply();
+                doorbell.start();
+            } else {
+                doorbell.stop();
+            }
         }
 
         // --- Eclipse

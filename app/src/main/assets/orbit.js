@@ -151,6 +151,7 @@
     eclipse: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="15" cy="10" r="8" fill="#0a0c20" stroke="none"/><path d="M12 2v1M12 21v1M2 12h1M21 12h1" stroke-linecap="round"/></svg>',
     sound: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
     live: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M8 2l4 4 4-4"/><circle cx="12" cy="12.5" r="2" fill="#fff"/></svg>',
+    doorbell: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="2"/><circle cx="12" cy="15.5" r="2.6"/><path d="M3 9c-1 2-1 4 0 6M21 9c1 2 1 4 0 6"/></svg>',
     belt: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="14" r="2.5"/><circle cx="13" cy="9" r="3.5"/><circle cx="19" cy="15" r="1.8"/><path d="M2 19c6-2 14-2 20 0"/></svg>'
   };
   var BEDTIMES = [null, 21, 22, 23, 0, 1];
@@ -161,6 +162,41 @@
   var eclipseAt = 0, ecStep = 0;
   function eclipseLabel() { return eclipseAt > Date.now() ? 'at ' + hhmm(eclipseAt) : 'off'; }
 
+  // ------------------------------------------------------------------ doorbell test
+  function bellState() {
+    try { if (NATIVE && NATIVE.doorbellState) return JSON.parse(NATIVE.doorbellState()); } catch (e) {}
+    return { on: false, status: 'off', count: 0, log: [], ip: '' };
+  }
+  function bellItem() {
+    var b = bellState(), last = b.log && b.log[0], sub;
+    if (!b.on) sub = 'OK to start · checks whether this box can hear your Tapo doorbell being pressed';
+    else if (last) sub = 'Heard ' + b.count + ' signal' + (b.count === 1 ? '' : 's') + ' · last at ' + hhmm(last.at) + ' from ' + last.ip + ' · OK for details';
+    else sub = 'Listening — press your doorbell now · OK for details';
+    return { tool: 'doorbell', label: 'Doorbell test · ' + (b.on ? (b.count ? 'heard it!' : 'listening') : 'off'), sub: sub, c: '#2b2208', c2: '#e6b422' };
+  }
+  function openBell(start) {
+    var b = bellState();
+    if (start && !b.on && NATIVE && NATIVE.doorbellTest) { NATIVE.doorbellTest(true); b = bellState(); }
+    var rows = (b.log || []).map(function (e) {
+      return '<p class="code" style="font-size:1.7vh;margin:.6vh 0">' + hhmm(e.at) + ' · ' + esc(e.ip) + ' · ' + e.len + ' bytes<br><span style="opacity:.55">' + esc(e.hex) + '</span></p>';
+    }).join('');
+    var status = String(b.status || '');
+    var head = b.count ? '🔔 Heard ' + b.count + ' signal' + (b.count === 1 ? '' : 's') + '!' :
+      status.indexOf('error') === 0 ? 'Couldn’t start listening' : 'Listening… press your doorbell';
+    var body = b.count ?
+      '<p>Your doorbell (or its hub) is talking on the network. Orbit can use this to pop up the doorbell when someone rings.</p>' + rows :
+      status.indexOf('error') === 0 ? '<p>' + esc(status) + '</p>' :
+      '<p>Go and press the doorbell a couple of times. Anything that arrives on UDP port 20005 shows up here, even if you’re in another app.</p>' +
+      '<p style="opacity:.6">If nothing appears after a few presses: in the Tapo phone app turn on <b>Me → Third-Party Compatibility</b>, then try again. This box is ' + esc(b.ip || 'not on a network') + '.</p>';
+    openModal({ bell: true, key: function (k) {
+      if (k === 'ok' || k === 'back') closeModal();
+      else if (k === 'playpause') { if (NATIVE && NATIVE.doorbellTest) NATIVE.doorbellTest(false); closeModal(); refreshTools(); toast('Doorbell test stopped'); }
+    } },
+      '<div class="panel" style="max-width:66vw"><h2>Doorbell test</h2><h1>' + head + '</h1>' + body +
+      '<p style="opacity:.45">OK to close · PLAY to stop listening</p></div>');
+    refreshTools();
+  }
+
   function toolItems() {
     return [
       { tool: 'beam', label: 'Beam from your phone', sub: 'Scan once — send links, APKs, Downloader codes and notes to the TV', c: '#122046', c2: '#4f7bff' },
@@ -169,6 +205,7 @@
       { tool: 'spellbook', label: 'Spellbook', sub: Object.keys(store.spells).length + ' spells bound', c: '#141a4d', c2: '#5d6dff' },
       { tool: 'bedtime', label: 'Bedtime · ' + bedLabel(store.bedtime), sub: 'OK to change · after this the sky warms and launching asks for a breath', c: '#3d1a0c', c2: '#e2763a' },
       { tool: 'sound', label: 'Sonic orbit · ' + SOUND_LABELS[store.sound || 0], sub: 'OK to change · every world has its own note', c: '#0f2b33', c2: '#36b5c9' },
+      bellItem(),
       { tool: 'unhide', label: 'Hidden worlds · ' + store.hidden.length, sub: 'OK to bring every hidden app back into orbit', c: '#0d2d2a', c2: '#2fb39b' },
       { tool: 'forget', label: 'Forget my habits', sub: 'Clears launch history — the tide starts fresh', c: '#2a2a2a', c2: '#8a8a8a' },
       { tool: 'settings', label: 'Android settings', sub: 'System settings for this box', c: '#14212e', c2: '#4b84b8' }
@@ -705,6 +742,7 @@
       case 'forget': openConfirm('Forget your habits?', 'The tide, gravity and insights start from nothing.', function () { store.history = []; saveNow(); rebuild(true); updateClock(); }); break;
       case 'settings': if (NATIVE) NATIVE.openSettings(); break;
       case 'beltinfo': openBeltInfo(); break;
+      case 'doorbell': openBell(true); break;
     }
   }
   function refreshTools() {
@@ -1036,6 +1074,15 @@
     toast: toast,
     progress: progress,
     eclipseArrived: eclipseArrived,
+    doorbellHeard: function (e) {
+      if (modal && modal.bell) { closeModal(); openBell(); }
+      else toast('🔔 Doorbell signal heard from ' + e.ip);
+      if (rings.length) refreshTools();
+    },
+    doorbellStatus: function (st) {
+      if (modal && modal.bell) { closeModal(); openBell(); }
+      if (rings.length) refreshTools();
+    },
     eclipseChanged: function (at) { eclipseAt = at || 0; if (!at) ecStep = 0; if (rings.length) refreshTools(); updateClock(); toast(at ? 'Eclipse set from your phone — ' + hhmm(at) : 'Eclipse cancelled from your phone'); }
   };
 
