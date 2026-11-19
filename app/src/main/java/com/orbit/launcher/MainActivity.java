@@ -294,6 +294,20 @@ public class MainActivity extends Activity {
             o.put("service", svc);
             o.put("err", prefs.getString("bell_err", ""));
             o.put("onAt", prefs.getLong("bell_on_at", 0));
+            o.put("createdAt", prefs.getLong("bell_created_at", 0));
+            String en = "";
+            try { en = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES); } catch (Exception ignored) { }
+            o.put("enabled", en != null && en.contains(getPackageName() + "/"));
+            int acc = -1;
+            try { acc = Settings.Secure.getInt(getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED); } catch (Exception ignored) { }
+            o.put("accOn", acc);
+            boolean listed = false;
+            try {
+                android.view.accessibility.AccessibilityManager am = (android.view.accessibility.AccessibilityManager) getSystemService(ACCESSIBILITY_SERVICE);
+                for (android.accessibilityservice.AccessibilityServiceInfo i : am.getInstalledAccessibilityServiceList())
+                    if (i.getId() != null && i.getId().startsWith(getPackageName() + "/")) listed = true;
+            } catch (Exception ignored) { }
+            o.put("listed", listed);
             o.put("popup", prefs.getBoolean("bell_popup", true));
             o.put("secs", prefs.getInt("bell_secs", 20));
             o.put("name", prefs.getString("bell_name", "Doorbell"));

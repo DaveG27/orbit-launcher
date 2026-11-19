@@ -182,7 +182,9 @@
       openMenu('Switch on the doorbell pop-up', 'Doorbell', [
         { label: 'Open Accessibility settings', run: function () { if (NATIVE && NATIVE.bellSettings) NATIVE.bellSettings(); } },
         { label: 'Not now', run: function () {} }
-      ], (b.err ? '<p style="color:#ffb3b3">Last problem: ' + esc(b.err) + '</p>' : '') + (b.onAt ? '<p style="opacity:.6">It last switched on at ' + hhmm(b.onAt) + '.</p>' : '') +
+      ], '<p class="code" style="font-size:1.8vh;opacity:.8">Check: listed ' + (b.listed ? 'yes' : 'NO') + ' · enabled in settings ' + (b.enabled ? 'yes' : 'no') + ' · accessibility ' + (b.accOn === 1 ? 'on' : b.accOn === 0 ? 'off' : '?') +
+        ' · started ' + (b.createdAt ? hhmm(b.createdAt) : 'never') + ' · connected ' + (b.onAt ? hhmm(b.onAt) : 'never') + '</p>' +
+        (b.err ? '<p style="color:#ffb3b3">Last problem: ' + esc(b.err) + '</p>' : '') +
         '<p>In the settings that open, choose <b>Orbit doorbell</b> and turn it on. When Android asks to allow it, move to <b>Allow</b> / <b>OK</b> before pressing OK — the highlight starts on Cancel. That lets Orbit notice the ring whatever app you’re in, open your doorbell in Tapo, and bring you back afterwards. Then press BACK to return here.</p>' +
         (b.tapo ? '' : '<p style="opacity:.7">You’ll also need the Tapo app installed on this box, signed in.</p>'));
       return;

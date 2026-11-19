@@ -46,6 +46,21 @@ public class DoorbellAccess extends AccessibilityService {
     }
 
     @Override
+    public void onCreate() {
+        super.onCreate();
+        try {
+            prefs = getSharedPreferences("orbit", MODE_PRIVATE);
+            prefs.edit().putLong("bell_created_at", System.currentTimeMillis()).apply();
+            final Thread.UncaughtExceptionHandler prev = Thread.getDefaultUncaughtExceptionHandler();
+            Thread.setDefaultUncaughtExceptionHandler((th, ex) -> {
+                StackTraceElement[] st = ex.getStackTrace();
+                note("crash" + (st.length > 0 ? " at " + st[0].getClassName().replace("com.orbit.launcher.", "") + ":" + st[0].getLineNumber() : ""), ex);
+                if (prev != null) prev.uncaughtException(th, ex);
+            });
+        } catch (Throwable ignored) { }
+    }
+
+    @Override
     protected void onServiceConnected() {
         try { connect(); } catch (Throwable t) { note("start", t); }
     }
