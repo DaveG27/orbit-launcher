@@ -36,10 +36,24 @@ public class DoorbellAccess extends AccessibilityService {
 
     static boolean running() { return instance != null; }
 
+    /** Any crash in here makes Android switch the service off, so nothing is allowed to escape. */
+    private void note(String where, Throwable t) {
+        try {
+            if (prefs == null) prefs = getSharedPreferences("orbit", MODE_PRIVATE);
+            prefs.edit().putString("bell_err", where + ": " + t.getClass().getSimpleName()
+                    + (t.getMessage() == null ? "" : " — " + t.getMessage())).apply();
+        } catch (Throwable ignored) { }
+    }
+
     @Override
     protected void onServiceConnected() {
+        try { connect(); } catch (Throwable t) { note("start", t); }
+    }
+
+    private void connect() {
         instance = this;
         prefs = getSharedPreferences("orbit", MODE_PRIVATE);
+        prefs.edit().remove("bell_err").putLong("bell_on_at", System.currentTimeMillis()).apply();
         if (prefs.getString("bell_ip", "").isEmpty()) {   // use the address the Doorbell test already heard
             try {
                 org.json.JSONArray log = new org.json.JSONArray(prefs.getString("doorbell_log", "[]"));
@@ -48,13 +62,15 @@ public class DoorbellAccess extends AccessibilityService {
         }
         bell = new Doorbell(this, new Doorbell.Listener() {
             @Override public void heard(String ip, int length, String hex) {
-                Doorbell.record(prefs, ip, length, hex, true);
-                h.post(() -> ring(ip, false));
+                try { Doorbell.record(prefs, ip, length, hex, true); } catch (Throwable t) { note("log", t); }
+                h.post(() -> { try { ring(ip, false); } catch (Throwable t) { note("ring", t); } });
             }
             @Override public void status(String s) {
-                prefs.edit().putString("doorbell_status", s).apply();
-                MainActivity a = MainActivity.current();
-                if (a != null) a.bellStatusJs(s);
+                try {
+                    prefs.edit().putString("doorbell_status", s).apply();
+                    MainActivity a = MainActivity.current();
+                    if (a != null) a.bellStatusJs(s);
+                } catch (Throwable t) { note("status", t); }
             }
         });
         bell.start();
@@ -67,7 +83,7 @@ public class DoorbellAccess extends AccessibilityService {
     public void onDestroy() { shutdown(); super.onDestroy(); }
 
     private void shutdown() {
-        if (bell != null) bell.stop();
+        try { if (bell != null) bell.stop(); } catch (Throwable ignored) { }
         bell = null;
         instance = null;
         h.removeCallbacksAndMessages(null);
@@ -79,6 +95,11 @@ public class DoorbellAccess extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
+        try { event(e); } catch (Throwable t) { note("event", t); }
+    }
+
+    private void event(AccessibilityEvent e) {
+        if (e == null) return;
         CharSequence cs = e.getPackageName();
         if (cs == null) return;
         String pkg = cs.toString();
@@ -108,7 +129,7 @@ public class DoorbellAccess extends AccessibilityService {
 
     static void test() {
         DoorbellAccess a = instance;
-        if (a != null) a.h.post(() -> a.ring(null, true));
+        if (a != null) a.h.post(() -> { try { a.ring(null, true); } catch (Throwable t) { a.note("test", t); } });
     }
 
     private void ring(String ip, boolean test) {
@@ -138,7 +159,7 @@ public class DoorbellAccess extends AccessibilityService {
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         try { startActivity(launch); } catch (Exception x) { showing = false; return; }
         // keep trying to tap the doorbell tile while Tapo loads
-        for (int i = 1; i <= 24; i++) h.postDelayed(() -> { if (showing && !tapped) tryTap(); }, i * 500L);
+        for (int i = 1; i <= 24; i++) h.postDelayed(() -> { try { if (showing && !tapped) tryTap(); } catch (Throwable t) { note("tap", t); } }, i * 500L);
         // if the tile never appears, still give up and go back in good time
         scheduleFinish(12000L + secs() * 1000L);
     }
@@ -171,7 +192,7 @@ public class DoorbellAccess extends AccessibilityService {
         }
     }
 
-    private final Runnable finish = this::finish;
+    private final Runnable finish = () -> { try { finish(); } catch (Throwable t) { note("finish", t); } };
 
     private void scheduleFinish(long ms) {
         h.removeCallbacks(finish);
@@ -185,7 +206,7 @@ public class DoorbellAccess extends AccessibilityService {
         // back out of the live view so the doorbell stops streaming
         performGlobalAction(GLOBAL_ACTION_BACK);
         h.postDelayed(() -> performGlobalAction(GLOBAL_ACTION_BACK), 350);
-        h.postDelayed(this::returnToApp, 800);
+        h.postDelayed(() -> { try { returnToApp(); } catch (Throwable t) { note("return", t); } }, 800);
     }
 
     private void returnToApp() {

@@ -81,7 +81,7 @@ class Doorbell {
                 DatagramPacket p = new DatagramPacket(buf, buf.length);
                 s.receive(p);
                 String ip = p.getAddress() == null ? "?" : p.getAddress().getHostAddress();
-                listener.heard(ip, p.getLength(), hex(buf, p.getLength(), 24));
+                try { listener.heard(ip, p.getLength(), hex(buf, p.getLength(), 24)); } catch (Throwable ignored) { }
             }
         } catch (Exception e) {
             if (thread == Thread.currentThread()) {

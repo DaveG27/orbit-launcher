@@ -292,6 +292,8 @@ public class MainActivity extends Activity {
             boolean svc = DoorbellAccess.running();
             o.put("on", svc || (doorbell != null && doorbell.running()));
             o.put("service", svc);
+            o.put("err", prefs.getString("bell_err", ""));
+            o.put("onAt", prefs.getLong("bell_on_at", 0));
             o.put("popup", prefs.getBoolean("bell_popup", true));
             o.put("secs", prefs.getInt("bell_secs", 20));
             o.put("name", prefs.getString("bell_name", "Doorbell"));
