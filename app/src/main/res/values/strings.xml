@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bell_access_desc">When your Tapo doorbell rings, Orbit opens its live view over whatever you\'re watching, then takes you back after the time you chose. Orbit uses this only to see which app is open, tap your doorbell in the Tapo app, and go back.</string>
+</resources>

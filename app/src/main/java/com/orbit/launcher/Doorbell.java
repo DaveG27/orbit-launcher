@@ -1,6 +1,10 @@
 package com.orbit.launcher;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 import android.net.wifi.WifiManager;
 
 import java.net.DatagramPacket;
@@ -88,6 +92,31 @@ class Doorbell {
         } finally {
             if (s != null) s.close();
         }
+    }
+
+    /** Keeps the last 20 packets for the Doorbell panel and tells Orbit's screen, if it's open. */
+    static synchronized JSONObject record(SharedPreferences prefs, String ip, int length, String hex, boolean notify) {
+        JSONObject e = new JSONObject();
+        try {
+            e.put("at", System.currentTimeMillis());
+            e.put("ip", ip);
+            e.put("len", length);
+            e.put("hex", hex);
+            JSONArray log;
+            try { log = new JSONArray(prefs.getString("doorbell_log", "[]")); } catch (Exception x) { log = new JSONArray(); }
+            JSONArray next = new JSONArray();
+            next.put(e);
+            for (int i = 0; i < log.length() && next.length() < 20; i++) next.put(log.get(i));
+            prefs.edit()
+                    .putString("doorbell_log", next.toString())
+                    .putInt("doorbell_count", prefs.getInt("doorbell_count", 0) + 1)
+                    .apply();
+        } catch (Exception ignored) { }
+        if (notify) {
+            MainActivity a = MainActivity.current();
+            if (a != null) a.bellHeardJs(e);
+        }
+        return e;
     }
 
     private static String hex(byte[] b, int len, int max) {

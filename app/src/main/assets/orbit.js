@@ -169,33 +169,36 @@
     return { on: false, status: 'off', count: 0, log: [], ip: '' };
   }
   function bellItem() {
-    var b = bellState(), last = b.log && b.log[0], sub;
-    if (!b.on) sub = 'OK to start · checks whether this box can hear your Tapo doorbell being pressed';
-    else if (last) sub = 'Heard ' + b.count + ' signal' + (b.count === 1 ? '' : 's') + ' · last at ' + hhmm(last.at) + ' from ' + last.ip + ' · OK for details';
-    else sub = 'Listening — press your doorbell now · OK for details';
-    return { tool: 'doorbell', label: 'Doorbell test · ' + (b.on ? (b.count ? 'heard it!' : 'listening') : 'off'), sub: sub, c: '#2b2208', c2: '#e6b422' };
-  }
-  function openBell(start) {
     var b = bellState();
-    if (start && !b.on && NATIVE && NATIVE.doorbellTest) { NATIVE.doorbellTest(true); b = bellState(); }
-    var rows = (b.log || []).map(function (e) {
-      return '<p class="code" style="font-size:1.7vh;margin:.6vh 0">' + hhmm(e.at) + ' · ' + esc(e.ip) + ' · ' + e.len + ' bytes<br><span style="opacity:.55">' + esc(e.hex) + '</span></p>';
-    }).join('');
-    var status = String(b.status || '');
-    var head = b.count ? '🔔 Heard ' + b.count + ' signal' + (b.count === 1 ? '' : 's') + '!' :
-      status.indexOf('error') === 0 ? 'Couldn’t start listening' : 'Listening… press your doorbell';
-    var body = b.count ?
-      '<p>Your doorbell (or its hub) is talking on the network. Orbit can use this to pop up the doorbell when someone rings.</p>' + rows :
-      status.indexOf('error') === 0 ? '<p>' + esc(status) + '</p>' :
-      '<p>Go and press the doorbell a couple of times. Anything that arrives on UDP port 20005 shows up here, even if you’re in another app.</p>' +
-      '<p style="opacity:.6">If nothing appears after a few presses: in the Tapo phone app turn on <b>Me → Third-Party Compatibility</b>, then try again. This box is ' + esc(b.ip || 'not on a network') + '.</p>';
-    openModal({ bell: true, key: function (k) {
-      if (k === 'ok' || k === 'back') closeModal();
-      else if (k === 'playpause') { if (NATIVE && NATIVE.doorbellTest) NATIVE.doorbellTest(false); closeModal(); refreshTools(); toast('Doorbell test stopped'); }
-    } },
-      '<div class="panel" style="max-width:66vw"><h2>Doorbell test</h2><h1>' + head + '</h1>' + body +
-      '<p style="opacity:.45">OK to close · PLAY to stop listening</p></div>');
-    refreshTools();
+    if (!b.service) return { tool: 'doorbell', label: 'Doorbell pop-up · off', sub: 'OK to switch on · when the Tapo doorbell rings, Orbit shows it over whatever’s playing', c: '#2b2208', c2: '#e6b422' };
+    var sub = !b.tapo ? 'Install the Tapo app on this box so Orbit can show who’s there' :
+      !b.popup ? 'Paused · OK to turn pop-ups back on' :
+      'Rings show “' + b.name + '” for ' + b.secs + 's, then back to what you were watching · OK for options';
+    return { tool: 'doorbell', label: 'Doorbell pop-up · ' + (b.popup ? 'on' : 'paused'), sub: sub, c: '#2b2208', c2: '#e6b422' };
+  }
+  function openBell() {
+    var b = bellState();
+    if (!b.service) {
+      openMenu('Switch on the doorbell pop-up', 'Doorbell', [
+        { label: 'Open Accessibility settings', run: function () { if (NATIVE && NATIVE.bellSettings) NATIVE.bellSettings(); } },
+        { label: 'Not now', run: function () {} }
+      ], '<p>In the settings that open, choose <b>Orbit doorbell</b> and turn it on. That lets Orbit notice the ring whatever app you’re in, open your doorbell in Tapo, and bring you back afterwards. Then press BACK to return here.</p>' +
+        (b.tapo ? '' : '<p style="opacity:.7">You’ll also need the Tapo app installed on this box, signed in.</p>'));
+      return;
+    }
+    var last = (b.log || []).slice(0, 3).map(function (e) { return hhmm(e.at) + ' from ' + esc(e.ip); }).join(' · ');
+    openMenu('Doorbell pop-up', b.popup ? 'On' : 'Paused', [
+      { label: 'Test it now', run: function () { toast('Opening the doorbell — back in ' + b.secs + 's'); if (NATIVE && NATIVE.bellTest) NATIVE.bellTest(); } },
+      { label: 'Show it for ' + b.secs + 's → change', run: function () {
+        var opts = [10, 20, 30, 45, 60, 90].map(function (n) { return { label: n + ' seconds' + (n === b.secs ? ' ✓' : ''), run: function () { NATIVE.bellSecs(n); refreshTools(); toast('Doorbell shows for ' + n + 's'); } }; });
+        openMenu('How long on screen?', 'Doorbell', opts);
+      } },
+      { label: b.popup ? 'Pause pop-ups' : 'Turn pop-ups back on', run: function () { NATIVE.bellPopup(!b.popup); refreshTools(); toast(b.popup ? 'Doorbell pop-ups paused' : 'Doorbell pop-ups on'); } },
+      { label: 'Accessibility settings', run: function () { NATIVE.bellSettings(); } },
+      { label: 'Close', run: function () {} }
+    ], '<p>Looks for the tile called <b>“' + esc(b.name) + '”</b> in Tapo' + (b.bellIp ? ' · doorbell at ' + esc(b.bellIp) : '') + '.</p>' +
+      (last ? '<p style="opacity:.6">Last rings: ' + last + '</p>' : '<p style="opacity:.6">No rings heard yet.</p>') +
+      (b.tapo ? '' : '<p style="color:#ffb3b3">Tapo isn’t installed on this box.</p>'));
   }
 
   function toolItems() {
@@ -744,7 +747,7 @@
       case 'forget': openConfirm('Forget your habits?', 'The tide, gravity and insights start from nothing.', function () { store.history = []; saveNow(); rebuild(true); updateClock(); }); break;
       case 'settings': if (NATIVE) NATIVE.openSettings(); break;
       case 'beltinfo': openBeltInfo(); break;
-      case 'doorbell': openBell(true); break;
+      case 'doorbell': openBell(); break;
       case 'update': if (NATIVE && NATIVE.checkUpdate) { toast('Checking for a newer Orbit…'); NATIVE.checkUpdate(); } break;
     }
   }
@@ -1082,15 +1085,8 @@
       else if (o.newer) toast('A newer Orbit is here — downloading it now');
       else toast('Orbit is up to date (v' + o.current + ')');
     },
-    doorbellHeard: function (e) {
-      if (modal && modal.bell) { closeModal(); openBell(); }
-      else toast('🔔 Doorbell signal heard from ' + e.ip);
-      if (rings.length) refreshTools();
-    },
-    doorbellStatus: function (st) {
-      if (modal && modal.bell) { closeModal(); openBell(); }
-      if (rings.length) refreshTools();
-    },
+    doorbellHeard: function (e) { if (rings.length) refreshTools(); },
+    doorbellStatus: function (st) { if (rings.length) refreshTools(); },
     eclipseChanged: function (at) { eclipseAt = at || 0; if (!at) ecStep = 0; if (rings.length) refreshTools(); updateClock(); toast(at ? 'Eclipse set from your phone — ' + hhmm(at) : 'Eclipse cancelled from your phone'); }
   };
 

@@ -184,7 +184,8 @@ public class MainActivity extends Activity {
                 js("window.Orbit&&Orbit.doorbellStatus&&Orbit.doorbellStatus(" + JSONObject.quote(status) + ")");
             }
         });
-        if (prefs.getBoolean("doorbell_test", false)) doorbell.start();
+        // the accessibility service listens for the doorbell itself when it's switched on
+        if (prefs.getBoolean("doorbell_test", false) && !DoorbellAccess.running()) doorbell.start();
 
         handleIntent(getIntent());
     }
@@ -273,30 +274,30 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------------ Doorbell test
     // Keeps the last 20 packets heard on UDP 20005, so a ring is recorded even while
     // another app is on screen.
-    private synchronized void doorbellHeard(String ip, int length, String hex) {
-        JSONObject e = new JSONObject();
-        try {
-            e.put("at", System.currentTimeMillis());
-            e.put("ip", ip);
-            e.put("len", length);
-            e.put("hex", hex);
-            JSONArray log;
-            try { log = new JSONArray(prefs.getString("doorbell_log", "[]")); } catch (Exception x) { log = new JSONArray(); }
-            JSONArray next = new JSONArray();
-            next.put(e);
-            for (int i = 0; i < log.length() && next.length() < 20; i++) next.put(log.get(i));
-            prefs.edit()
-                    .putString("doorbell_log", next.toString())
-                    .putInt("doorbell_count", prefs.getInt("doorbell_count", 0) + 1)
-                    .apply();
-        } catch (Exception ignored) { }
+    private void doorbellHeard(String ip, int length, String hex) {
+        bellHeardJs(Doorbell.record(prefs, ip, length, hex, false));
+    }
+
+    void bellHeardJs(JSONObject e) {
         js("window.Orbit&&Orbit.doorbellHeard&&Orbit.doorbellHeard(" + e.toString() + ")");
+    }
+
+    void bellStatusJs(String status) {
+        js("window.Orbit&&Orbit.doorbellStatus&&Orbit.doorbellStatus(" + JSONObject.quote(status) + ")");
     }
 
     String doorbellState() {
         JSONObject o = new JSONObject();
         try {
-            o.put("on", doorbell != null && doorbell.running());
+            boolean svc = DoorbellAccess.running();
+            o.put("on", svc || (doorbell != null && doorbell.running()));
+            o.put("service", svc);
+            o.put("popup", prefs.getBoolean("bell_popup", true));
+            o.put("secs", prefs.getInt("bell_secs", 20));
+            o.put("name", prefs.getString("bell_name", "Doorbell"));
+            o.put("bellIp", prefs.getString("bell_ip", ""));
+            o.put("tapo", getPackageManager().getLaunchIntentForPackage(DoorbellAccess.TAPO) != null
+                    || getPackageManager().getLeanbackLaunchIntentForPackage(DoorbellAccess.TAPO) != null);
             o.put("status", prefs.getString("doorbell_status", "off"));
             o.put("count", prefs.getInt("doorbell_count", 0));
             JSONArray log;
@@ -721,11 +722,31 @@ public class MainActivity extends Activity {
             prefs.edit().putBoolean("doorbell_test", on).apply();
             if (on) {
                 prefs.edit().remove("doorbell_log").remove("doorbell_count").apply();
-                doorbell.start();
+                if (!DoorbellAccess.running()) doorbell.start();
             } else {
                 doorbell.stop();
             }
         }
+
+        @JavascriptInterface
+        public void bellSettings() {
+            runOnUiThread(() -> {
+                try {
+                    startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                } catch (Exception e) {
+                    toastJs("Open Settings → Accessibility and turn on Orbit doorbell");
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void bellTest() { DoorbellAccess.test(); }
+
+        @JavascriptInterface
+        public void bellSecs(int s) { prefs.edit().putInt("bell_secs", Math.max(5, Math.min(180, s))).apply(); }
+
+        @JavascriptInterface
+        public void bellPopup(boolean on) { prefs.edit().putBoolean("bell_popup", on).apply(); }
 
         // --- Eclipse
         @JavascriptInterface
